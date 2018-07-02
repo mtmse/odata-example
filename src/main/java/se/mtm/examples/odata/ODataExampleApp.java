@@ -1,6 +1,8 @@
 package se.mtm.examples.odata;
 
 import org.apache.olingo.client.api.ODataClient;
+import org.apache.olingo.client.api.communication.request.cud.ODataEntityUpdateRequest;
+import org.apache.olingo.client.api.communication.request.cud.UpdateType;
 import org.apache.olingo.client.api.communication.response.ODataEntityCreateResponse;
 import org.apache.olingo.client.api.domain.ClientEntity;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
@@ -37,9 +39,10 @@ public class ODataExampleApp {
         // Manipulate people
         app.listPeople();
         final URI personEditLink = app.addSomePerson();
-        System.out.println("Edit person link: "+ personEditLink);
+        app.changeFirstName(personEditLink, "Anja");
         app.listPeople(app.getFilterFactory().eq("LastName", "Person"));
     }
+
 
     private ODataExampleApp(final String serviceKey) {
         this.serviceUrl = REFERENCE_SERVICE_BASE_URL + serviceKey + "/";
@@ -69,7 +72,7 @@ public class ODataExampleApp {
     //// People ////
 
     /**
-      Add a new 'Person' to the enity set 'People'
+     * Add a new 'Person' to the enity set 'People'
      */
     private URI addSomePerson() {
         final URI peopleUri =
@@ -89,6 +92,25 @@ public class ODataExampleApp {
         final ODataEntityCreateResponse<ClientEntity> createPersonResponse =
                 client.getCUDRequestFactory().getEntityCreateRequest(peopleUri, newPerson).execute();
         return createPersonResponse.getBody().getEditLink();
+    }
+
+    /**
+     * Update the first name of an existing person
+     */
+    private void changeFirstName(URI editLink, String newName) {
+        // OData uses the ETag to determine if the entity has been manipulate since retrieved
+        // Thus we must include it in the update request, or OData will refuce to process the new request
+        final String eTag =
+                client.getRetrieveRequestFactory().getEntityRequest(editLink).execute().getETag();
+
+        final ClientEntity update =
+                client.getObjectFactory().newEntity(new FullQualifiedName("Microsoft.OData.SampleService.Models.TripPin.Person"));
+        update.getProperties().add(
+                client.getObjectFactory().newPrimitiveProperty("FirstName", client.getObjectFactory().newPrimitiveValueBuilder().buildString(newName))
+        );
+        final ODataEntityUpdateRequest<ClientEntity> entityUpdateRequest = client.getCUDRequestFactory().getEntityUpdateRequest(editLink, UpdateType.PATCH, update);
+        entityUpdateRequest.setIfMatch(eTag);
+        entityUpdateRequest.execute();
     }
 
     /**
