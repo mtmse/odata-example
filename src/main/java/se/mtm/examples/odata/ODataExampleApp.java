@@ -1,11 +1,11 @@
 package se.mtm.examples.odata;
 
-
 import org.apache.olingo.client.api.ODataClient;
 import org.apache.olingo.client.api.communication.response.ODataEntityCreateResponse;
 import org.apache.olingo.client.api.domain.ClientEntity;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.client.api.domain.ClientServiceDocument;
+import org.apache.olingo.client.api.uri.FilterFactory;
 import org.apache.olingo.client.api.uri.URIFilter;
 import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.commons.api.edm.Edm;
@@ -21,36 +21,57 @@ import java.util.stream.Collectors;
  *
  */
 public class ODataExampleApp {
-
     private static final String REFERENCE_SERVICE_BASE_URL = "http://services.odata.org/V4/TripPinServiceRW/";
+
+    private final String serviceUrl;
+    private final ODataClient client;
 
     public static void main(String[] args){
         final String serviceKey = args[0];
-        final String serviceUrl = REFERENCE_SERVICE_BASE_URL + serviceKey + "/";
+        final ODataExampleApp app = new ODataExampleApp(serviceKey);
 
-        ODataClient client =
-                ODataClientFactory.getClient();
+        // Service info
+        app.displayServiceDocument();
+        app.displayEdm();
 
-        // Fetch, then print, the service document (simplified service descriptor)
+        // Manipulate people
+        app.listPeople();
+        final URI personEditLink = app.addSomePerson();
+        System.out.println("Edit person link: "+ personEditLink);
+        app.listPeople(app.getFilterFactory().eq("LastName", "Person"));
+    }
+
+    private ODataExampleApp(final String serviceKey) {
+        this.serviceUrl = REFERENCE_SERVICE_BASE_URL + serviceKey + "/";
+        this.client = ODataClientFactory.getClient();
+    }
+
+    //// Schema ////
+
+    /**
+     * Fetch, then print, the service document (simplified service descriptor)
+     */
+    private void displayServiceDocument() {
         final ClientServiceDocument serviceDocument =
                 client.getRetrieveRequestFactory().getServiceDocumentRequest(serviceUrl).execute().getBody();
         OdataPrintUtils.printServiceDocument(serviceDocument);
+    }
 
-        // Fetch, then print, the Entity Data Model (detailed service descriptor)
+    /**
+     * Fetch, then print, the Entity Data Model (detailed service descriptor)
+     */
+    private void displayEdm() {
         final Edm edm =
                 client.getRetrieveRequestFactory().getMetadataRequest(serviceUrl).execute().getBody();
         OdataPrintUtils.printEdm(edm);
-
-        // Manipulate people
-        listPeople(client, serviceUrl);
-
-        final URI personEditLink = addSomePerson(serviceUrl, client);
-        System.out.println("Edit person link: "+ personEditLink);
-
-        listPeople(client, serviceUrl, client.getFilterFactory().eq("LastName", "Person"));
     }
 
-    private static URI addSomePerson(String serviceUrl, ODataClient client) {
+    //// People ////
+
+    /**
+      Add a new 'Person' to the enity set 'People'
+     */
+    private URI addSomePerson() {
         final URI peopleUri =
                 client.newURIBuilder(serviceUrl).appendEntitySetSegment("People").build();
         final ClientEntity newPerson =
@@ -70,9 +91,10 @@ public class ODataExampleApp {
         return createPersonResponse.getBody().getEditLink();
     }
 
-
-    private static void listPeople(ODataClient client, String serviceUrl) {
-        // List people
+    /**
+     * List members of the entity set 'People'
+     */
+    private void listPeople() {
         final URI peopleUri =
                 client.newURIBuilder(serviceUrl).appendEntitySetSegment("People").build();
         final ClientEntitySet people =
@@ -83,7 +105,10 @@ public class ODataExampleApp {
         System.out.println("Peoples names: " + peoplesNames );
     }
 
-    private static void listPeople(ODataClient client, String serviceUrl, URIFilter filter) {
+    /**
+     * List members of 'People' matching the given filter
+     */
+    private void listPeople(URIFilter filter) {
         final URI peopleUri =
                 client.newURIBuilder(serviceUrl).appendEntitySetSegment("People").filter(filter).build();
         final ClientEntitySet people =
@@ -92,5 +117,11 @@ public class ODataExampleApp {
                 .map((person) -> person.getProperty("FirstName").getValue() + " " + person.getProperty("LastName").getValue())
                 .collect(Collectors.toList());
         System.out.println("Peoples names: " + peoplesNames );
+    }
+
+    //// Helpers/Wrappers ////
+
+    private FilterFactory getFilterFactory() {
+        return client.getFilterFactory();
     }
 }
