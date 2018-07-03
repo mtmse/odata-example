@@ -53,10 +53,16 @@ public class OdataPrintUtils {
                 }
             }
 
+            // Print actions with typed parameters
             System.out.println("Actions..");
             for (EdmAction action: schema.getActions()) {
-                FullQualifiedName name = action.getFullQualifiedName();
-                System.out.println("\t- " + name);
+                final FullQualifiedName name = action.getFullQualifiedName();
+                final List<String> parameterNames = action.getParameterNames();
+                System.out.println("\t- " + name + "(" + parameterNames + ")");
+                for (final String paramName : parameterNames) {
+                    final EdmParameter param = action.getParameter(paramName);
+                    System.out.println("\t\t" + param.getName() + ":"+ param.getType().getFullQualifiedName());
+                }
             }
 
             System.out.println("Functions..");
