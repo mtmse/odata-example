@@ -25,6 +25,11 @@ hs_err_pid*
 
 # Gradle work dir
 .gradle/
+/build/
 
 # IDE-specific files and directories
 .idea/
+.classpath
+.project
+.settings/
+bin/
