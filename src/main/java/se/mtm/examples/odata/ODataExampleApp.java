@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
  *
  */
 public class ODataExampleApp {
-    private static final String REFERENCE_SERVICE_BASE_URL = "http://services.odata.org/V4/TripPinServiceRW/";
+    private static final String REFERENCE_SERVICE_BASE_URL = "https://services.odata.org/V4/TripPinServiceRW/";
 
     private final String serviceUrl;
     private final ODataClient client;
