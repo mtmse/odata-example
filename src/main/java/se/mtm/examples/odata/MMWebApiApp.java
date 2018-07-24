@@ -38,23 +38,25 @@ public class MMWebApiApp {
     // Example of a book with physical copies
     private static final MarcRecordId AUGUST_AND_ASTA = new MarcRecordId(30755);
 
+    private final ODataClient client;
+    private final String serviceUrl;
+
 
     public static void main(String[] args) {
         final String serviceUrl = args[0];
         final String username = args[1];
         final String password = args[2];
-        out.println("Service url: " + serviceUrl);
 
-        ODataClient client = initODataClient(username, password);
+        final MMWebApiApp app = new MMWebApiApp(serviceUrl, username, password);
 
         // Create a new borrower
         // (immediately loaning and registering books)
-        final BorrowerId borrower = createBorrower(client, serviceUrl);
-        registerUnidirectionalLoan(client, serviceUrl, borrower, FLUID_MECHANICS_RECORD_ID);
-        registerReservation(client, serviceUrl, borrower, AUGUST_AND_ASTA);
+        final BorrowerId borrower = app.createBorrower();
+        app.registerUnidirectionalLoan(borrower, FLUID_MECHANICS_RECORD_ID);
+        app.registerReservation(borrower, AUGUST_AND_ASTA);
 
         // Fetch, then print, emails of 'Borrowers'
-        final List<ClientEntity> borrowers = fetchBorrowers(client, serviceUrl, 0, 5);
+        final List<ClientEntity> borrowers = app.fetchBorrowers(0, 5);
         final List<String> borrowerNames =
                 borrowers.stream()
                         .map(b -> b.getProperty("Name").getValue())
@@ -64,15 +66,20 @@ public class MMWebApiApp {
         out.println("Borrowers: " + borrowerNames);
 
 
-        // Fetch, then print, the service document (simplified service descriptor)
-        final ClientServiceDocument serviceDocument =
-                client.getRetrieveRequestFactory().getServiceDocumentRequest(serviceUrl).execute().getBody();
-        printServiceDocument(serviceDocument);
+        // Fetch, then print, the service document and Entity Data Model
+        printServiceDocument(app.getServiceDocument());
+        printEdm(app.getEdm());
+    }
 
-        // Fetch, then print, the Entity Data Model (detailed service descriptor)
-        final Edm edm =
-                client.getRetrieveRequestFactory().getMetadataRequest(serviceUrl).execute().getBody();
-        printEdm(edm);
+    /**
+     * Facade to the Mikromarc 3 WebAPI
+     *
+     * Encapsulates everything OData-related inside a simpler set of type safe methods.
+     *
+     */
+    private MMWebApiApp(String serviceUrl, String username, String password) {
+        this.serviceUrl = serviceUrl;
+        this.client = initODataClient(username, password);
     }
 
     /**
@@ -91,10 +98,20 @@ public class MMWebApiApp {
         return client;
     }
 
+    private ClientServiceDocument getServiceDocument(){
+        return client.getRetrieveRequestFactory().getServiceDocumentRequest(serviceUrl).execute().getBody();
+    }
+
+    private Edm getEdm() {
+        return client.getRetrieveRequestFactory().getMetadataRequest(serviceUrl).execute().getBody();
+    }
+
+
+
     /**
      * Create an example 'Borrower' named Exemplara Exempelsdottir
      */
-    private static BorrowerId createBorrower(ODataClient client, String serviceUrl) {
+    private BorrowerId createBorrower() {
         final URI createBorrowerUri =
                 client.newURIBuilder(serviceUrl).appendEntitySetSegment("Borrowers").appendOperationCallSegment("Default.Create").build();
 
@@ -106,9 +123,9 @@ public class MMWebApiApp {
         payload.put("Pin", objectFactory.newPrimitiveValueBuilder().buildString("1234"));
 
         // Add borrower to data payload
-        final ClientComplexValue borrower = createBorrowerPayload(objectFactory);
+        final ClientComplexValue borrower = createBorrowerPayload();
         final ClientCollectionValue<ClientValue> barcodes = objectFactory.newCollectionValue("Collection(Mikromarc.Common.Remoting.WebApiDTO.BorrowerBarcode)");
-        barcodes.add(createBarcodePayload(objectFactory));
+        barcodes.add(createBarcodePayload());
         borrower.add(objectFactory.newCollectionProperty("Barcodes", barcodes));
         payload.put("Borrower", borrower);
 
@@ -126,7 +143,9 @@ public class MMWebApiApp {
         return new BorrowerId(Integer.toUnsignedLong((Integer) responseBody.getProperty("Id").getValue().asPrimitive().toValue()));
     }
 
-    private static ClientComplexValue createBorrowerPayload(ClientObjectFactory objectFactory) {
+    private ClientComplexValue createBorrowerPayload() {
+        ClientObjectFactory objectFactory = client.getObjectFactory();
+
         // Set only *required* Borrower properties
         final ClientComplexValue borrower = objectFactory.newComplexValue("Mikromarc.Common.Remoting.WebApiDTO.Borrower");
         borrower.add(objectFactory.newPrimitiveProperty("MainEmail", objectFactory.newPrimitiveValueBuilder().buildString(EXAMPLE_EMAIL)));
@@ -137,7 +156,10 @@ public class MMWebApiApp {
         return borrower;
     }
 
-    private static ClientComplexValue createBarcodePayload(ClientObjectFactory objectFactory) {
+    private ClientComplexValue createBarcodePayload() {
+        ClientObjectFactory objectFactory = client.getObjectFactory();
+
+        // Set barcode
         final ClientComplexValue barcode = objectFactory.newComplexValue("Mikromarc.Common.Remoting.WebApiDTO.BorrowerBarcode");
         barcode.add(objectFactory.newPrimitiveProperty("Barcode", objectFactory.newPrimitiveValueBuilder().buildString(createUniqueBarcode())));
         barcode.add(objectFactory.newPrimitiveProperty("IsCommonBorrowerCard", objectFactory.newPrimitiveValueBuilder().buildBoolean(false)));
@@ -148,7 +170,7 @@ public class MMWebApiApp {
     /**
      * Fetch a segment of borrowers in given range
      */
-    private static List<ClientEntity> fetchBorrowers(ODataClient client, String serviceUrl, int offset, int limit) {
+    private List<ClientEntity> fetchBorrowers(int offset, int limit) {
         final URI borrowersUri =
                 client.newURIBuilder(serviceUrl).appendEntitySetSegment("Borrowers").skip(offset).top(limit).build();
         final ODataEntitySetRequest<ClientEntitySet> borrowersRequest =
@@ -159,7 +181,7 @@ public class MMWebApiApp {
     /**
      * Register a unidirectional loan of a (print on demand) e-book
      */
-    private static void registerUnidirectionalLoan(ODataClient client, String serviceUrl, BorrowerId borrowerId, MarcRecordId marcRecordId) {
+    private void registerUnidirectionalLoan(BorrowerId borrowerId, MarcRecordId marcRecordId) {
         out.println("Register a unidirectional loan of " + marcRecordId + " for " + borrowerId );
 
         final URI actionUri =
@@ -187,7 +209,7 @@ public class MMWebApiApp {
     /**
      * Register a reservation for a book with physical copies.
      */
-    private static void registerReservation(ODataClient client, String serviceUrl, BorrowerId borrowerId, MarcRecordId marcRecordId) {
+    private void registerReservation(BorrowerId borrowerId, MarcRecordId marcRecordId) {
         out.println("Register a reservation of " + marcRecordId + " for " + borrowerId );
 
         // URI: /odata/BorrowerReservations/Default.Create
