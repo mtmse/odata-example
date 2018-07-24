@@ -53,23 +53,15 @@ public class MMWebApiApp {
         registerUnidirectionalLoan(client, serviceUrl, borrower, FLUID_MECHANICS_RECORD_ID);
         registerReservation(client, serviceUrl, borrower, AUGUST_AND_ASTA);
 
-
-
         // Fetch, then print, emails of 'Borrowers'
-        final URI borrowersUri =
-                client.newURIBuilder(serviceUrl).appendEntitySetSegment("Borrowers").build();
-        final ODataEntitySetRequest<ClientEntitySet> borrowersRequest =
-                client.getRetrieveRequestFactory().getEntitySetRequest(borrowersUri);
-        final List<ClientEntity> borrowers =
-                borrowersRequest.execute().getBody().getEntities();
-        final List<String> borrowerEmails =
+        final List<ClientEntity> borrowers = fetchBorrowers(client, serviceUrl, 0, 5);
+        final List<String> borrowerNames =
                 borrowers.stream()
-                        .map(b -> b.getProperty("MainEmail").getValue())
+                        .map(b -> b.getProperty("Name").getValue())
                         .map(Objects::toString)
                         .filter(e -> !e.equals(""))
                         .collect(Collectors.toList());
-        out.println("Borrowers: " + borrowerEmails);
-        out.println("Borrower count: " + borrowerEmails.size());
+        out.println("Borrowers: " + borrowerNames);
 
 
         // Fetch, then print, the service document (simplified service descriptor)
@@ -151,6 +143,17 @@ public class MMWebApiApp {
         barcode.add(objectFactory.newPrimitiveProperty("IsCommonBorrowerCard", objectFactory.newPrimitiveValueBuilder().buildBoolean(false)));
         barcode.add(objectFactory.newPrimitiveProperty("IsSSN", objectFactory.newPrimitiveValueBuilder().buildBoolean(false)));
         return barcode;
+    }
+
+    /**
+     * Fetch a segment of borrowers in given range
+     */
+    private static List<ClientEntity> fetchBorrowers(ODataClient client, String serviceUrl, int offset, int limit) {
+        final URI borrowersUri =
+                client.newURIBuilder(serviceUrl).appendEntitySetSegment("Borrowers").skip(offset).top(limit).build();
+        final ODataEntitySetRequest<ClientEntitySet> borrowersRequest =
+                client.getRetrieveRequestFactory().getEntitySetRequest(borrowersUri);
+        return borrowersRequest.execute().getBody().getEntities();
     }
 
     /**
