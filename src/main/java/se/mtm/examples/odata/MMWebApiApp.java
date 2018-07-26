@@ -29,8 +29,8 @@ import static se.mtm.examples.odata.OdataPrintUtils.printServiceDocument;
 public class MMWebApiApp {
 
     // Example user details
-    private static final String EXAMPLE_EMAIL = "exemplara.exempesdottir@example.com";
-    private static final String EXAMPLE_NAME = "Exempesdottir, Exemplara";
+    private static final String EXAMPLE_EMAIL = "exemplara.exemplesdottir@example.com";
+    private static final String EXAMPLE_NAME = "Exemplesdottir, Exemplara";
 
     // Example of an electronic book
     private static final MarcRecordId FLUID_MECHANICS_RECORD_ID = new MarcRecordId(56190);
@@ -130,7 +130,7 @@ public class MMWebApiApp {
         payload.put("Borrower", borrower);
 
         // Prepare request
-        final ODataInvokeResponse<ClientEntity> response = preformActionRequest(client, createBorrowerUri, payload);
+        final ODataInvokeResponse<ClientEntity> response = performActionRequest(client, createBorrowerUri, payload);
         final ClientEntity responseBody = response.getBody();
 
         // Print result
@@ -201,7 +201,7 @@ public class MMWebApiApp {
         payload.put("ExternalSystemName", objectFactory.newPrimitiveValueBuilder().buildString("Envägslån"));
 
         // Prepare (action invocation) request without OData-metadata
-        final ODataInvokeResponse<ClientEntity> response = preformActionRequest(client, actionUri, payload);
+        final ODataInvokeResponse<ClientEntity> response = performActionRequest(client, actionUri, payload);
 
         printResponseStatus("Registered a unidirectional loan", response);
     }
@@ -229,17 +229,17 @@ public class MMWebApiApp {
         payload.put("DeliverAtUnitId", objectFactory.newPrimitiveValueBuilder().buildString("6473"));
 
         // Prepare (action invocation) request without OData-metadata
-        final ODataInvokeResponse<ClientEntity> response = preformActionRequest(client, actionUri, payload);
+        final ODataInvokeResponse<ClientEntity> response = performActionRequest(client, actionUri, payload);
 
         printResponseStatus("Registered reservation", response);
     }
 
-    private static ODataInvokeResponse<ClientEntity> preformActionRequest(ODataClient client, URI actionUri, Map<String, ClientValue> payload) {
+    private static ODataInvokeResponse<ClientEntity> performActionRequest(ODataClient client, URI actionUri, Map<String, ClientValue> payload) {
         final ODataInvokeRequest<ClientEntity> actionInvokeRequest =
                 client.getInvokeRequestFactory().getActionInvokeRequest(actionUri, ClientEntity.class, payload);
         actionInvokeRequest.setFormat(ContentType.JSON_NO_METADATA);
         actionInvokeRequest.setContentType(ContentType.APPLICATION_JSON.toContentTypeString() + ";odata.metadata=none");
-
+        
         return actionInvokeRequest.execute();
     }
 
