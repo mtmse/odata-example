@@ -130,7 +130,7 @@ public class MMWebApiApp {
         payload.put("Borrower", borrower);
 
         // Prepare request
-        final ODataInvokeResponse<ClientEntity> response = performActionRequest(client, createBorrowerUri, payload);
+        final ODataInvokeResponse<ClientEntity> response = performActionRequest(createBorrowerUri, payload);
         final ClientEntity responseBody = response.getBody();
 
         // Print result
@@ -201,7 +201,7 @@ public class MMWebApiApp {
         payload.put("ExternalSystemName", objectFactory.newPrimitiveValueBuilder().buildString("Envägslån"));
 
         // Prepare (action invocation) request without OData-metadata
-        final ODataInvokeResponse<ClientEntity> response = performActionRequest(client, actionUri, payload);
+        final ODataInvokeResponse<ClientEntity> response = performActionRequest(actionUri, payload);
 
         printResponseStatus("Registered a unidirectional loan", response);
     }
@@ -229,12 +229,12 @@ public class MMWebApiApp {
         payload.put("DeliverAtUnitId", objectFactory.newPrimitiveValueBuilder().buildString("6473"));
 
         // Prepare (action invocation) request without OData-metadata
-        final ODataInvokeResponse<ClientEntity> response = performActionRequest(client, actionUri, payload);
+        final ODataInvokeResponse<ClientEntity> response = performActionRequest(actionUri, payload);
 
         printResponseStatus("Registered reservation", response);
     }
 
-    private static ODataInvokeResponse<ClientEntity> performActionRequest(ODataClient client, URI actionUri, Map<String, ClientValue> payload) {
+    private ODataInvokeResponse<ClientEntity> performActionRequest(URI actionUri, Map<String, ClientValue> payload) {
         final ODataInvokeRequest<ClientEntity> actionInvokeRequest =
                 client.getInvokeRequestFactory().getActionInvokeRequest(actionUri, ClientEntity.class, payload);
         actionInvokeRequest.setFormat(ContentType.JSON_NO_METADATA);
