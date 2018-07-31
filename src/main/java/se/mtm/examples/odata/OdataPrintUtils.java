@@ -1,9 +1,12 @@
 package se.mtm.examples.odata;
 
+import org.apache.olingo.client.api.domain.ClientProperty;
 import org.apache.olingo.client.api.domain.ClientServiceDocument;
 import org.apache.olingo.commons.api.edm.*;
 
 import java.util.List;
+
+import static java.lang.System.out;
 
 public class OdataPrintUtils {
 
@@ -72,5 +75,11 @@ public class OdataPrintUtils {
             }
         }
         System.out.println();
+    }
+
+    public static void printClientProperties(List<ClientProperty> properties) {
+        for ( ClientProperty p : properties) {
+            out.println("\t - " + p.getName() + ": " + p.getValue().toString() + "\t(" + p.getValue().getTypeName() + ")");
+        }
     }
 }

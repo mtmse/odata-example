@@ -102,10 +102,12 @@ public class MMWebApiApp {
         return client.getRetrieveRequestFactory().getServiceDocumentRequest(serviceUrl).execute().getBody();
     }
 
+    /**
+     * Get the Entity Data Model - The OData equivalent of a SOAP-schema
+     */
     private Edm getEdm() {
         return client.getRetrieveRequestFactory().getMetadataRequest(serviceUrl).execute().getBody();
     }
-
 
 
     /**
@@ -124,9 +126,6 @@ public class MMWebApiApp {
 
         // Add borrower to data payload
         final ClientComplexValue borrower = createBorrowerPayload();
-        final ClientCollectionValue<ClientValue> barcodes = objectFactory.newCollectionValue("Collection(Mikromarc.Common.Remoting.WebApiDTO.BorrowerBarcode)");
-        barcodes.add(createBarcodePayload());
-        borrower.add(objectFactory.newCollectionProperty("Barcodes", barcodes));
         payload.put("Borrower", borrower);
 
         // Prepare request
@@ -135,14 +134,15 @@ public class MMWebApiApp {
 
         // Print result
         printResponseStatus("Created new Borrower", response);
-        for ( ClientProperty p :responseBody.getProperties()) {
-            out.println("\t - " + p.getName() + ": " + p.getValue().toString() + "\t(" + p.getValue().getTypeName() + ")");
-        }
+        OdataPrintUtils.printClientProperties(responseBody.getProperties());
 
         // Return new Borrower Id
         return new BorrowerId(Integer.toUnsignedLong((Integer) responseBody.getProperty("Id").getValue().asPrimitive().toValue()));
     }
 
+    /**
+     * Create borrower part of borrower creation request body
+     */
     private ClientComplexValue createBorrowerPayload() {
         ClientObjectFactory objectFactory = client.getObjectFactory();
 
@@ -153,9 +153,18 @@ public class MMWebApiApp {
         borrower.add(objectFactory.newPrimitiveProperty("HomeUnitId", objectFactory.newPrimitiveValueBuilder().buildInt32(6473)));
         borrower.add(objectFactory.newPrimitiveProperty("Name", objectFactory.newPrimitiveValueBuilder().buildString(EXAMPLE_NAME)));
         borrower.add(objectFactory.newPrimitiveProperty("PreferredLanguage", objectFactory.newPrimitiveValueBuilder().buildString("swe")));
+
+        // Add barcode
+        final ClientCollectionValue<ClientValue> barcodes = objectFactory.newCollectionValue("Collection(Mikromarc.Common.Remoting.WebApiDTO.BorrowerBarcode)");
+        barcodes.add(createBarcodePayload());
+        borrower.add(objectFactory.newCollectionProperty("Barcodes", barcodes));
+
         return borrower;
     }
 
+    /**
+     * Create barcode part of borrower creation request body
+     */
     private ClientComplexValue createBarcodePayload() {
         ClientObjectFactory objectFactory = client.getObjectFactory();
 
@@ -212,6 +221,7 @@ public class MMWebApiApp {
     private void registerReservation(BorrowerId borrowerId, MarcRecordId marcRecordId) {
         out.println("Register a reservation of " + marcRecordId + " for " + borrowerId );
 
+        // Create method call URI for registering a reservation
         // URI: /odata/BorrowerReservations/Default.Create
         final URI actionUri =
                 client.newURIBuilder(serviceUrl)
@@ -228,17 +238,21 @@ public class MMWebApiApp {
         payload.put("BorrowerId", objectFactory.newPrimitiveValueBuilder().buildString(borrowerId.getDbId()+""));
         payload.put("DeliverAtUnitId", objectFactory.newPrimitiveValueBuilder().buildString("6473"));
 
-        // Prepare (action invocation) request without OData-metadata
+        // Invoke reservation action request
         final ODataInvokeResponse<ClientEntity> response = performActionRequest(actionUri, payload);
 
         printResponseStatus("Registered reservation", response);
     }
 
+
+    /**
+     * Make an OData request that invokes some action at the given URI with the provided request body payload
+     */
     private ODataInvokeResponse<ClientEntity> performActionRequest(URI actionUri, Map<String, ClientValue> payload) {
         final ODataInvokeRequest<ClientEntity> actionInvokeRequest =
                 client.getInvokeRequestFactory().getActionInvokeRequest(actionUri, ClientEntity.class, payload);
         actionInvokeRequest.setFormat(ContentType.JSON_NO_METADATA);
-        actionInvokeRequest.setContentType(ContentType.APPLICATION_JSON.toContentTypeString() + ";odata.metadata=none");
+        actionInvokeRequest.setContentType(ContentType.APPLICATION_JSON.toContentTypeString());
         
         return actionInvokeRequest.execute();
     }
@@ -250,8 +264,8 @@ public class MMWebApiApp {
         return "snowflake-no-" + (currentTimeMillis() / 1000 % 1000);
     }
 
-    private static void printResponseStatus(String hint, ODataResponse response) {
-        out.println(String.format("%s - HTTP Status: %d %s", hint, response.getStatusCode(), response.getStatusMessage()));
+    private static void printResponseStatus(String requestDescription, ODataResponse response) {
+        out.println(String.format("%s - HTTP Status: %d %s", requestDescription, response.getStatusCode(), response.getStatusMessage()));
     }
 
     //// Local value types ////
